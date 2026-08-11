@@ -2,6 +2,7 @@ package configx
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -40,14 +41,14 @@ func TestParseSchemaLeaves(t *testing.T) {
 	}
 
 	want := map[string]leaf{
-		"app.name":               {path: "app.name", typ: "string"},
-		"app.log_level":          {path: "app.log_level", typ: "string"},
-		"app.http.port":          {path: "app.http.port", typ: "integer"},
-		"app.http.read-timeout":  {path: "app.http.read-timeout", typ: "string"},
-		"app.http.debug":         {path: "app.http.debug", typ: "boolean"},
-		"app.http.ratio":         {path: "app.http.ratio", typ: "number"},
-		"app.http.hosts":         {path: "app.http.hosts", typ: "array", itemsType: "string"},
-		"app.http.ports":         {path: "app.http.ports", typ: "array", itemsType: "integer"},
+		"app.name":              {path: "app.name", typ: "string"},
+		"app.log_level":         {path: "app.log_level", typ: "string"},
+		"app.http.port":         {path: "app.http.port", typ: "integer"},
+		"app.http.read-timeout": {path: "app.http.read-timeout", typ: "string"},
+		"app.http.debug":        {path: "app.http.debug", typ: "boolean"},
+		"app.http.ratio":        {path: "app.http.ratio", typ: "number"},
+		"app.http.hosts":        {path: "app.http.hosts", typ: "array", itemsType: "string"},
+		"app.http.ports":        {path: "app.http.ports", typ: "array", itemsType: "integer"},
 	}
 
 	if !reflect.DeepEqual(info.leaves, want) {
@@ -68,9 +69,30 @@ func TestParseSchemaUnionTypeIsUntyped(t *testing.T) {
 	}
 }
 
+func TestParseSchemaBooleanSubschemaIsLeaf(t *testing.T) {
+	schema := `{"type":"object","properties":{"a":true,"b":{"type":"string"}}}`
+
+	info, err := parseSchema([]byte(schema))
+	if err != nil {
+		t.Fatalf("parseSchema: %v", err)
+	}
+
+	if got := info.leaves["a"].typ; got != "" {
+		t.Fatalf("a.typ = %q, want empty", got)
+	}
+
+	if got := info.leaves["b"].typ; got != "string" {
+		t.Fatalf("b.typ = %q, want string", got)
+	}
+}
+
 func TestParseSchemaInvalidJSON(t *testing.T) {
-	if _, err := parseSchema([]byte("{not json")); err == nil {
+	_, err := parseSchema([]byte("{not json"))
+	if err == nil {
 		t.Fatal("expected an error")
+	}
+	if !strings.HasPrefix(err.Error(), "configx:") {
+		t.Fatalf("error prefix = %q, want configx:", err.Error())
 	}
 }
 

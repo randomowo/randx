@@ -48,15 +48,17 @@ func walkSchema(node map[string]any, path string, info *schemaInfo) {
 	}
 
 	for name, child := range props {
-		childNode, ok := child.(map[string]any)
-		if !ok {
-			continue
-		}
-
 		childPath := name
 		if path != "" {
 			childPath = path + "." + name
 		}
+
+		childNode, ok := child.(map[string]any)
+		if !ok {
+			info.leaves[childPath] = leaf{path: childPath, typ: "", itemsType: ""}
+			continue
+		}
+
 		walkSchema(childNode, childPath, info)
 	}
 }
