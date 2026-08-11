@@ -1,0 +1,4 @@
+app:
+  name: from-file
+  http:
+    port: 9090
