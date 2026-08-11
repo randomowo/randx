@@ -1,0 +1,45 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  default: standard
+  enable:
+    - errorlint
+    - gocritic
+    - misspell
+    - nilerr
+    - nlreturn
+    - predeclared
+    - revive
+    - unconvert
+    - usestdlibvars
+    - wastedassign
+    - whitespace
+  settings:
+    nlreturn:
+      block-size: 2
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - performance
+        - style
+    revive:
+      rules:
+        - name: exported
+        - name: var-naming
+        - name: indent-error-flow
+        - name: error-strings
+  exclusions:
+    generated: lax
+    rules:
+      - path: _test\.go
+        linters:
+          - nlreturn
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
