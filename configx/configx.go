@@ -138,7 +138,7 @@ func normalizeTimes(k *koanf.Koanf) error {
 func normalizeValue(v any) (any, bool) {
 	switch t := v.(type) {
 	case time.Time:
-		return t.Format(time.RFC3339), true
+		return t.Format(time.RFC3339Nano), true
 
 	case []any:
 		out := make([]any, len(t))
@@ -146,6 +146,17 @@ func normalizeValue(v any) (any, bool) {
 		for i, item := range t {
 			normalized, itemChanged := normalizeValue(item)
 			out[i] = normalized
+			changed = changed || itemChanged
+		}
+
+		return out, changed
+
+	case map[string]any:
+		out := make(map[string]any, len(t))
+		changed := false
+		for key, item := range t {
+			normalized, itemChanged := normalizeValue(item)
+			out[key] = normalized
 			changed = changed || itemChanged
 		}
 
