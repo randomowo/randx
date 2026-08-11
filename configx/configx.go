@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/knadh/koanf/providers/confmap"
 	env "github.com/knadh/koanf/providers/env/v2"
@@ -84,6 +85,10 @@ func New(schema []byte, opts ...Option) (*Config, error) {
 		return nil, errors.Join(envErrs...)
 	}
 
+	if err := normalizeTimes(k); err != nil {
+		return nil, err
+	}
+
 	if err := validate(compiled, k); err != nil {
 		return nil, err
 	}
@@ -108,6 +113,47 @@ func compileSchema(raw []byte) (*jsonschema.Schema, error) {
 	}
 
 	return sch, nil
+}
+
+func normalizeTimes(k *koanf.Koanf) error {
+	replacements := map[string]any{}
+	for path, value := range k.All() {
+		normalized, changed := normalizeValue(value)
+		if changed {
+			replacements[path] = normalized
+		}
+	}
+
+	if len(replacements) == 0 {
+		return nil
+	}
+
+	if err := k.Load(confmap.Provider(replacements, "."), nil); err != nil {
+		return fmt.Errorf("configx: normalize timestamps: %w", err)
+	}
+
+	return nil
+}
+
+func normalizeValue(v any) (any, bool) {
+	switch t := v.(type) {
+	case time.Time:
+		return t.Format(time.RFC3339), true
+
+	case []any:
+		out := make([]any, len(t))
+		changed := false
+		for i, item := range t {
+			normalized, itemChanged := normalizeValue(item)
+			out[i] = normalized
+			changed = changed || itemChanged
+		}
+
+		return out, changed
+
+	default:
+		return v, false
+	}
 }
 
 func validate(sch *jsonschema.Schema, k *koanf.Koanf) error {
