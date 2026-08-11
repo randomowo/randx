@@ -57,6 +57,7 @@ func walkSchema(node map[string]any, path string, info *schemaInfo) {
 		if path != "" {
 			info.leaves[path] = leaf{path: path, typ: nodeType(node), itemsType: itemsType(node)}
 		}
+
 		return
 	}
 
@@ -69,6 +70,7 @@ func walkSchema(node map[string]any, path string, info *schemaInfo) {
 		childNode, ok := child.(map[string]any)
 		if !ok {
 			info.leaves[childPath] = leaf{path: childPath, typ: "", itemsType: ""}
+
 			continue
 		}
 
@@ -88,6 +90,7 @@ func itemsType(node map[string]any) string {
 	}
 
 	t, _ := items["type"].(string)
+
 	return t
 }
 
@@ -118,6 +121,7 @@ func buildEnvKeys(info *schemaInfo) error {
 		if len(paths) > 1 {
 			sort.Strings(paths)
 			collisions[name] = paths
+
 			continue
 		}
 
