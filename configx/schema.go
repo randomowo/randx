@@ -1,0 +1,81 @@
+package configx
+
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+)
+
+type leaf struct {
+	path      string
+	typ       string
+	itemsType string
+}
+
+type defaultEntry struct {
+	path  string
+	value any
+}
+
+type schemaInfo struct {
+	leaves   map[string]leaf
+	envKeys  map[string]leaf
+	defaults []defaultEntry
+}
+
+func parseSchema(raw []byte) (*schemaInfo, error) {
+	var root map[string]any
+	if err := json.Unmarshal(raw, &root); err != nil {
+		return nil, fmt.Errorf("configx: parse schema: %w", err)
+	}
+
+	info := &schemaInfo{
+		leaves:  map[string]leaf{},
+		envKeys: map[string]leaf{},
+	}
+	walkSchema(root, "", info)
+
+	return info, nil
+}
+
+func walkSchema(node map[string]any, path string, info *schemaInfo) {
+	props, ok := node["properties"].(map[string]any)
+	if !ok {
+		if path != "" {
+			info.leaves[path] = leaf{path: path, typ: nodeType(node), itemsType: itemsType(node)}
+		}
+		return
+	}
+
+	for name, child := range props {
+		childNode, ok := child.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		childPath := name
+		if path != "" {
+			childPath = path + "." + name
+		}
+		walkSchema(childNode, childPath, info)
+	}
+}
+
+func nodeType(node map[string]any) string {
+	t, _ := node["type"].(string)
+	return t
+}
+
+func itemsType(node map[string]any) string {
+	items, ok := node["items"].(map[string]any)
+	if !ok {
+		return ""
+	}
+
+	t, _ := items["type"].(string)
+	return t
+}
+
+func envName(path string) string {
+	return strings.ToUpper(strings.ReplaceAll(path, ".", "_"))
+}
