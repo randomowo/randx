@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/knadh/koanf/providers/confmap"
@@ -45,30 +47,27 @@ func New(schema []byte, opts ...Option) (*Config, error) {
 		}
 	}
 
-	for _, s := range l.sources {
+	for i, s := range l.sources {
 		if err := k.Load(s.provider, s.parser); err != nil {
-			return nil, fmt.Errorf("configx: load source: %w", err)
+			return nil, fmt.Errorf("configx: load source %d: %w", i, err)
 		}
 	}
 
-	var envErrs []error
+	var envErrs []*EnvValueError
 	provider := env.Provider(".", env.Opt{
+		Prefix: l.envPrefix,
 		TransformFunc: func(name, value string) (string, any) {
-			lf, ok := info.envKeys[name]
+			lf, ok := info.envKeys[strings.TrimPrefix(name, l.envPrefix)]
 			if !ok {
 				return "", nil
 			}
 
 			coerced, err := coerce(lf, value)
 			if err != nil {
-				var ce *coerceError
-				errors.As(err, &ce)
 				envErrs = append(envErrs, &EnvValueError{
 					EnvKey: name,
 					Path:   lf.path,
-					Type:   ce.typ,
-					Value:  ce.value,
-					Err:    ce.err,
+					Err:    err,
 				})
 
 				return "", nil
@@ -82,7 +81,14 @@ func New(schema []byte, opts ...Option) (*Config, error) {
 		return nil, fmt.Errorf("configx: load env: %w", err)
 	}
 	if len(envErrs) > 0 {
-		return nil, errors.Join(envErrs...)
+		sort.Slice(envErrs, func(i, j int) bool { return envErrs[i].EnvKey < envErrs[j].EnvKey })
+
+		joined := make([]error, len(envErrs))
+		for i, e := range envErrs {
+			joined[i] = e
+		}
+
+		return nil, errors.Join(joined...)
 	}
 
 	if err := normalizeTimes(k); err != nil {

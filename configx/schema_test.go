@@ -329,8 +329,7 @@ func TestEnvValueErrorMessage(t *testing.T) {
 	err := &EnvValueError{
 		EnvKey: "APP_HTTP_PORT",
 		Path:   "app.http.port",
-		Type:   "integer",
-		Value:  "abc",
+		Err:    &coerceError{typ: "integer", value: "abc"},
 	}
 
 	want := `configx: env APP_HTTP_PORT for key "app.http.port": cannot parse "abc" as integer`

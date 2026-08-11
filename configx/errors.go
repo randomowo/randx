@@ -46,13 +46,11 @@ func (e *coerceError) Unwrap() error { return e.err }
 type EnvValueError struct {
 	EnvKey string
 	Path   string
-	Type   string
-	Value  string
 	Err    error
 }
 
 func (e *EnvValueError) Error() string {
-	return fmt.Sprintf("configx: env %s for key %q: cannot parse %q as %s", e.EnvKey, e.Path, e.Value, e.Type)
+	return fmt.Sprintf("configx: env %s for key %q: %v", e.EnvKey, e.Path, e.Err)
 }
 
 func (e *EnvValueError) Unwrap() error { return e.Err }

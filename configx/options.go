@@ -13,10 +13,19 @@ type source struct {
 }
 
 type loader struct {
-	sources []source
+	sources   []source
+	envPrefix string
 }
 
 type Option func(*loader) error
+
+func WithEnvPrefix(prefix string) Option {
+	return func(l *loader) error {
+		l.envPrefix = prefix
+
+		return nil
+	}
+}
 
 func WithYAMLFile(path string) Option {
 	return func(l *loader) error {

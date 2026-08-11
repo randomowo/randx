@@ -189,3 +189,84 @@ func TestNewMissingYAMLFile(t *testing.T) {
 		t.Fatal("expected an error")
 	}
 }
+
+const envPrefixSchema = `{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "home": {"type": "string", "default": "schema-default"}
+  }
+}`
+
+func TestWithEnvPrefixIgnoresUnprefixed(t *testing.T) {
+	t.Setenv("HOME", "leaked-home")
+	t.Setenv("APP_HOME", "prefixed-home")
+
+	c, err := New([]byte(envPrefixSchema), WithEnvPrefix("APP_"))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	if got := c.String("home"); got != "prefixed-home" {
+		t.Errorf("home = %q, want \"prefixed-home\"", got)
+	}
+}
+
+func TestWithEnvPrefixStripsPrefix(t *testing.T) {
+	t.Setenv("CFG_APP_HTTP_PORT", "9999")
+
+	c, err := New([]byte(newSchema), WithEnvPrefix("CFG_"))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	if got := c.Int("app.http.port"); got != 9999 {
+		t.Errorf("app.http.port = %d, want 9999", got)
+	}
+}
+
+func TestNewAppliesSourcesInOrder(t *testing.T) {
+	c, err := New([]byte(newSchema),
+		WithYAMLBytes([]byte("app:\n  name: first\n")),
+		WithYAMLBytes([]byte("app:\n  name: second\n")),
+	)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	if got := c.String("app.name"); got != "second" {
+		t.Errorf("app.name = %q, want \"second\"", got)
+	}
+}
+
+const shallowDeepSchema = `{
+  "type": "object",
+  "properties": {
+    "a": {
+      "type": "object",
+      "default": {"b": {"c": "shallow", "d": "only-shallow"}},
+      "properties": {
+        "b": {
+          "type": "object",
+          "properties": {
+            "c": {"type": "string", "default": "deep"}
+          }
+        }
+      }
+    }
+  }
+}`
+
+func TestNewAppliesShallowDefaultsBeforeDeep(t *testing.T) {
+	c, err := New([]byte(shallowDeepSchema))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	if got := c.String("a.b.c"); got != "deep" {
+		t.Errorf("a.b.c = %q, want \"deep\"", got)
+	}
+	if got := c.String("a.b.d"); got != "only-shallow" {
+		t.Errorf("a.b.d = %q, want \"only-shallow\"", got)
+	}
+}
