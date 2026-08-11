@@ -3,6 +3,7 @@ package configx
 import (
 	"errors"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -248,6 +249,91 @@ func TestParseSchemaReportsEveryCollision(t *testing.T) {
 	}
 
 	want := `configx: env key collision: A_B is derived from keys "a.b", "a_b"; X_Y is derived from keys "x.y", "x_y"`
+	if err.Error() != want {
+		t.Fatalf("Error() = %q, want %q", err.Error(), want)
+	}
+}
+
+func TestCoerce(t *testing.T) {
+	cases := []struct {
+		name string
+		l    leaf
+		in   string
+		want any
+	}{
+		{"string", leaf{typ: "string"}, "hello", "hello"},
+		{"integer", leaf{typ: "integer"}, "8080", int64(8080)},
+		{"negative integer", leaf{typ: "integer"}, "-3", int64(-3)},
+		{"number", leaf{typ: "number"}, "1.5", 1.5},
+		{"boolean true", leaf{typ: "boolean"}, "true", true},
+		{"boolean numeric", leaf{typ: "boolean"}, "1", true},
+		{"string array", leaf{typ: "array", itemsType: "string"}, "a,b", []any{"a", "b"}},
+		{"integer array", leaf{typ: "array", itemsType: "integer"}, "1,2", []any{int64(1), int64(2)}},
+		{"empty array", leaf{typ: "array", itemsType: "string"}, "", []any{}},
+		{"untyped passthrough", leaf{typ: ""}, "raw", "raw"},
+		{"object passthrough", leaf{typ: "object"}, "raw", "raw"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := coerce(tc.l, tc.in)
+			if err != nil {
+				t.Fatalf("coerce: %v", err)
+			}
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("got %#v, want %#v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestCoerceFailures(t *testing.T) {
+	cases := []struct {
+		name    string
+		l       leaf
+		in      string
+		wantTyp string
+		wantVal string
+	}{
+		{"bad integer", leaf{typ: "integer"}, "abc", "integer", "abc"},
+		{"bad number", leaf{typ: "number"}, "abc", "number", "abc"},
+		{"bad boolean", leaf{typ: "boolean"}, "maybe", "boolean", "maybe"},
+		{"bad array element", leaf{typ: "array", itemsType: "integer"}, "1,nope", "integer", "nope"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := coerce(tc.l, tc.in)
+			if err == nil {
+				t.Fatal("expected an error")
+			}
+
+			var ce *coerceError
+			if !errors.As(err, &ce) {
+				t.Fatalf("error is %T, want *coerceError", err)
+			}
+			if ce.typ != tc.wantTyp {
+				t.Errorf("typ = %q, want %q", ce.typ, tc.wantTyp)
+			}
+			if ce.value != tc.wantVal {
+				t.Errorf("value = %q, want %q", ce.value, tc.wantVal)
+			}
+			if !errors.Is(err, strconv.ErrSyntax) {
+				t.Errorf("expected the strconv error to be wrapped")
+			}
+		})
+	}
+}
+
+func TestEnvValueErrorMessage(t *testing.T) {
+	err := &EnvValueError{
+		EnvKey: "APP_HTTP_PORT",
+		Path:   "app.http.port",
+		Type:   "integer",
+		Value:  "abc",
+	}
+
+	want := `configx: env APP_HTTP_PORT for key "app.http.port": cannot parse "abc" as integer`
 	if err.Error() != want {
 		t.Fatalf("Error() = %q, want %q", err.Error(), want)
 	}
