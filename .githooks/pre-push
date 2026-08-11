@@ -1,0 +1,8 @@
+#!/bin/sh
+set -e
+
+echo "pre-push: make lint"
+make lint
+
+echo "pre-push: make test"
+make test
