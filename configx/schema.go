@@ -3,6 +3,7 @@ package configx
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -34,11 +35,18 @@ func parseSchema(raw []byte) (*schemaInfo, error) {
 		envKeys: map[string]leaf{},
 	}
 	walkSchema(root, "", info)
+	sortDefaults(info.defaults)
 
 	return info, nil
 }
 
 func walkSchema(node map[string]any, path string, info *schemaInfo) {
+	if path != "" {
+		if def, ok := node["default"]; ok {
+			info.defaults = append(info.defaults, defaultEntry{path: path, value: def})
+		}
+	}
+
 	props, ok := node["properties"].(map[string]any)
 	if !ok {
 		if path != "" {
@@ -80,4 +88,15 @@ func itemsType(node map[string]any) string {
 
 func envName(path string) string {
 	return strings.ToUpper(strings.ReplaceAll(path, ".", "_"))
+}
+
+func sortDefaults(d []defaultEntry) {
+	sort.Slice(d, func(i, j int) bool {
+		di, dj := strings.Count(d[i].path, "."), strings.Count(d[j].path, ".")
+		if di != dj {
+			return di < dj
+		}
+
+		return d[i].path < d[j].path
+	})
 }

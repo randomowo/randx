@@ -109,3 +109,67 @@ func TestEnvName(t *testing.T) {
 		}
 	}
 }
+
+func TestParseSchemaDefaults(t *testing.T) {
+	info, err := parseSchema([]byte(testSchema))
+	if err != nil {
+		t.Fatalf("parseSchema: %v", err)
+	}
+
+	want := []defaultEntry{
+		{path: "app.log_level", value: "info"},
+		{path: "app.name", value: "randx"},
+		{path: "app.http.port", value: float64(8080)},
+		{path: "app.http.read-timeout", value: "5s"},
+	}
+
+	if !reflect.DeepEqual(info.defaults, want) {
+		t.Fatalf("defaults mismatch\n got: %#v\nwant: %#v", info.defaults, want)
+	}
+}
+
+func TestParseSchemaDefaultsShallowFirst(t *testing.T) {
+	schema := `{
+	  "type": "object",
+	  "properties": {
+	    "a": {
+	      "type": "object",
+	      "default": {"b": {"c": "shallow"}},
+	      "properties": {
+	        "b": {
+	          "type": "object",
+	          "properties": {"c": {"type": "string", "default": "deep"}}
+	        }
+	      }
+	    }
+	  }
+	}`
+
+	info, err := parseSchema([]byte(schema))
+	if err != nil {
+		t.Fatalf("parseSchema: %v", err)
+	}
+
+	if len(info.defaults) != 2 {
+		t.Fatalf("got %d defaults, want 2", len(info.defaults))
+	}
+	if info.defaults[0].path != "a" {
+		t.Errorf("defaults[0].path = %q, want \"a\"", info.defaults[0].path)
+	}
+	if info.defaults[1].path != "a.b.c" {
+		t.Errorf("defaults[1].path = %q, want \"a.b.c\"", info.defaults[1].path)
+	}
+}
+
+func TestParseSchemaIgnoresRootDefault(t *testing.T) {
+	schema := `{"type":"object","default":{"a":1},"properties":{"a":{"type":"integer"}}}`
+
+	info, err := parseSchema([]byte(schema))
+	if err != nil {
+		t.Fatalf("parseSchema: %v", err)
+	}
+
+	if len(info.defaults) != 0 {
+		t.Fatalf("got %d defaults, want 0", len(info.defaults))
+	}
+}
