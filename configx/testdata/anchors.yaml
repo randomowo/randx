@@ -1,0 +1,19 @@
+defaults: &defaults
+  host: localhost
+  port: 5432
+
+level: &level info
+
+hostlist: &hostlist
+  - a.example
+  - b.example
+
+db:
+  <<: *defaults
+  port: 6432
+
+cache:
+  <<: *defaults
+
+log_level: *level
+hosts: *hostlist
