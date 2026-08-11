@@ -1,6 +1,7 @@
 package configx
 
 import (
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -171,5 +172,83 @@ func TestParseSchemaIgnoresRootDefault(t *testing.T) {
 
 	if len(info.defaults) != 0 {
 		t.Fatalf("got %d defaults, want 0", len(info.defaults))
+	}
+}
+
+func TestParseSchemaEnvKeys(t *testing.T) {
+	info, err := parseSchema([]byte(testSchema))
+	if err != nil {
+		t.Fatalf("parseSchema: %v", err)
+	}
+
+	cases := map[string]string{
+		"APP_NAME":              "app.name",
+		"APP_LOG_LEVEL":         "app.log_level",
+		"APP_HTTP_PORT":         "app.http.port",
+		"APP_HTTP_READ-TIMEOUT": "app.http.read-timeout",
+		"APP_HTTP_PORTS":        "app.http.ports",
+	}
+
+	for env, wantPath := range cases {
+		lf, ok := info.envKeys[env]
+		if !ok {
+			t.Errorf("envKeys missing %q", env)
+			continue
+		}
+		if lf.path != wantPath {
+			t.Errorf("envKeys[%q].path = %q, want %q", env, lf.path, wantPath)
+		}
+	}
+}
+
+func TestParseSchemaEnvKeyCollision(t *testing.T) {
+	schema := `{
+	  "type": "object",
+	  "properties": {
+	    "a": {
+	      "type": "object",
+	      "properties": {
+	        "b_c": {"type": "string"},
+	        "b": {"type": "object", "properties": {"c": {"type": "string"}}}
+	      }
+	    }
+	  }
+	}`
+
+	_, err := parseSchema([]byte(schema))
+	if err == nil {
+		t.Fatal("expected a collision error")
+	}
+
+	var collision *EnvKeyCollisionError
+	if !errors.As(err, &collision) {
+		t.Fatalf("error is %T, want *EnvKeyCollisionError", err)
+	}
+
+	want := `configx: env key collision: A_B_C is derived from keys "a.b.c", "a.b_c"`
+	if err.Error() != want {
+		t.Fatalf("Error() = %q, want %q", err.Error(), want)
+	}
+}
+
+func TestParseSchemaReportsEveryCollision(t *testing.T) {
+	schema := `{
+	  "type": "object",
+	  "properties": {
+	    "a_b": {"type": "string"},
+	    "a": {"type": "object", "properties": {"b": {"type": "string"}}},
+	    "x_y": {"type": "string"},
+	    "x": {"type": "object", "properties": {"y": {"type": "string"}}}
+	  }
+	}`
+
+	_, err := parseSchema([]byte(schema))
+	if err == nil {
+		t.Fatal("expected a collision error")
+	}
+
+	want := `configx: env key collision: A_B is derived from keys "a.b", "a_b"; X_Y is derived from keys "x.y", "x_y"`
+	if err.Error() != want {
+		t.Fatalf("Error() = %q, want %q", err.Error(), want)
 	}
 }

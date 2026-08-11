@@ -37,6 +37,10 @@ func parseSchema(raw []byte) (*schemaInfo, error) {
 	walkSchema(root, "", info)
 	sortDefaults(info.defaults)
 
+	if err := buildEnvKeys(info); err != nil {
+		return nil, err
+	}
+
 	return info, nil
 }
 
@@ -99,4 +103,29 @@ func sortDefaults(d []defaultEntry) {
 
 		return d[i].path < d[j].path
 	})
+}
+
+func buildEnvKeys(info *schemaInfo) error {
+	byEnv := map[string][]string{}
+	for path := range info.leaves {
+		name := envName(path)
+		byEnv[name] = append(byEnv[name], path)
+	}
+
+	collisions := map[string][]string{}
+	for name, paths := range byEnv {
+		if len(paths) > 1 {
+			sort.Strings(paths)
+			collisions[name] = paths
+			continue
+		}
+
+		info.envKeys[name] = info.leaves[paths[0]]
+	}
+
+	if len(collisions) > 0 {
+		return &EnvKeyCollisionError{Collisions: collisions}
+	}
+
+	return nil
 }
