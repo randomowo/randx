@@ -57,6 +57,12 @@ func New(schema []byte, opts ...Option) (*Config, error) {
 	provider := env.Provider(".", env.Opt{
 		Prefix: l.envPrefix,
 		TransformFunc: func(name, value string) (string, any) {
+			// A process manager passes an unset optional variable as an empty
+			// string, which should leave a source or a default alone.
+			if value == "" {
+				return "", nil
+			}
+
 			lf, ok := info.envKeys[strings.TrimPrefix(name, l.envPrefix)]
 			if !ok {
 				return "", nil

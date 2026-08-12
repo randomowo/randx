@@ -225,6 +225,46 @@ func TestWithEnvPrefixStripsPrefix(t *testing.T) {
 	}
 }
 
+func TestNewEmptyEnvKeepsYAML(t *testing.T) {
+	t.Setenv("APP_NAME", "")
+
+	c, err := New([]byte(newSchema), WithYAMLBytes([]byte("app:\n  name: from-yaml\n")))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	if got := c.String("app.name"); got != "from-yaml" {
+		t.Errorf("app.name = %q, want \"from-yaml\"", got)
+	}
+}
+
+func TestNewEmptyEnvKeepsDefault(t *testing.T) {
+	t.Setenv("APP_HTTP_PORT", "")
+
+	c, err := New([]byte(newSchema))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	if got := c.Int("app.http.port"); got != 8080 {
+		t.Errorf("app.http.port = %d, want the default 8080", got)
+	}
+}
+
+func TestNewEmptyEnvStillReadsSetValues(t *testing.T) {
+	t.Setenv("APP_NAME", "from-env")
+	t.Setenv("APP_HTTP_PORT", "")
+
+	c, err := New([]byte(newSchema))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	if got := c.String("app.name"); got != "from-env" {
+		t.Errorf("app.name = %q, want \"from-env\"", got)
+	}
+}
+
 func TestNewAppliesSourcesInOrder(t *testing.T) {
 	c, err := New([]byte(newSchema),
 		WithYAMLBytes([]byte("app:\n  name: first\n")),
