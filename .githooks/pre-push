@@ -1,8 +1,8 @@
 #!/bin/sh
 set -e
 
-echo "pre-push: make lint"
-make lint
+echo "pre-push: task lint"
+task lint
 
-echo "pre-push: make test"
-make test
+echo "pre-push: task test"
+task test
