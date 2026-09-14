@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/google/uuid"
+	"uuid"
 )
 
 func TestUserIDParsesGatewayHeader(t *testing.T) {

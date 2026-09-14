@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/google/uuid"
+	"uuid"
 )
 
 const HeaderUserID = "X-User-Id"

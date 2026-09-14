@@ -1,9 +1,8 @@
 module github.randomowo.dev/randx
 
-go 1.26.5
+go 1.27.1
 
 require (
-	github.com/google/uuid v1.6.0
 	github.com/knadh/koanf/parsers/yaml v1.1.1
 	github.com/knadh/koanf/providers/confmap v1.0.1
 	github.com/knadh/koanf/providers/env/v2 v2.0.1
