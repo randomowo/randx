@@ -13,7 +13,7 @@ import (
 func TestUserIDParsesGatewayHeader(t *testing.T) {
 	id := uuid.MustParse("0197c0de-0000-7000-8000-000000000001")
 
-	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	r.Header.Set(HeaderUserID, id.String())
 
 	got, err := UserID(r)
@@ -28,7 +28,7 @@ func TestUserIDParsesGatewayHeader(t *testing.T) {
 func TestUserIDAcceptsPaddedValue(t *testing.T) {
 	id := uuid.MustParse("0197c0de-0000-7000-8000-000000000002")
 
-	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	r.Header.Set(HeaderUserID, "  "+id.String()+" ")
 
 	got, err := UserID(r)
@@ -49,7 +49,7 @@ func TestUserIDRejectsMissingAndMalformed(t *testing.T) {
 	}
 	for name, value := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := httptest.NewRequest(http.MethodGet, "/", nil)
+			r := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 			if value != "" {
 				r.Header.Set(HeaderUserID, value)
 			}
@@ -63,7 +63,7 @@ func TestUserIDRejectsMissingAndMalformed(t *testing.T) {
 }
 
 func TestUserIDSentinels(t *testing.T) {
-	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	if _, err := UserID(r); !errors.Is(err, ErrNoUserID) {
 		t.Fatalf("missing header: got %v, want ErrNoUserID", err)
 	}
@@ -82,7 +82,7 @@ func TestRequireUserIDPassesIdentityThrough(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 
-	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	r.Header.Set(HeaderUserID, id.String())
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
@@ -106,7 +106,7 @@ func TestRequireUserIDRejectsUnauthenticated(t *testing.T) {
 				t.Error("handler must not run")
 			})
 
-			r := httptest.NewRequest(http.MethodGet, "/", nil)
+			r := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 			if value != "" {
 				r.Header.Set(HeaderUserID, value)
 			}
